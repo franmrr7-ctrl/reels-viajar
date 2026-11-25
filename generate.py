@@ -263,7 +263,7 @@ def article_photos(post_id, exclude, n=5):
         tag = m.group(0)
         src = re.search(r'\ssrc="([^"]+)"', tag)
         wd = re.search(r'\swidth="(\d+)"', tag)
-        if not src or (wd and int(wd.group(1)) < 800):
+        if not src or (wd and int(wd.group(1)) < 600):
             continue
         u = html.unescape(src.group(1))
         if key(u) in seen or "logo" in u.lower() or "avatar" in u.lower():
@@ -288,7 +288,22 @@ def main(src, dst):
             extra.append(fetch_photo(u, os.path.join(tmp, f"extra{i}")))
         except Exception as ex:
             print("foto extra no disponible:", u, ex)
-    scene_photos = [photo] + [extra[i] if i < len(extra) else photo for i in range(5)]
+    # fotos unicas del articulo; si faltan (articulos antiguos sin fotos propias) se reutilizan con otro encuadre
+    uniq = [photo] + extra
+    focus = [(0.5, 0.5, 1.0), (0.12, 0.45, 1.35), (0.88, 0.55, 1.35), (0.5, 0.15, 1.35), (0.5, 0.9, 1.35), (0.25, 0.7, 1.5)]
+    scene_photos = []
+    for si_ in range(6):
+        k = si_ // len(uniq)
+        img = uniq[si_ % len(uniq)]
+        if k == 0:
+            scene_photos.append(img)
+        else:
+            fx, fy, z = focus[(si_ + k) % len(focus)]
+            if z == 1.0:
+                fx, fy, z = focus[1]
+            cw, chh = img.width / z, img.height / z
+            x0, y0 = (img.width - cw) * fx, (img.height - chh) * fy
+            scene_photos.append(img.crop((int(x0), int(y0), int(x0 + cw), int(y0 + chh))))
 
     # fondo comun: foto desenfocada y oscurecida
     scale = max(W / photo.width, H / photo.height)
