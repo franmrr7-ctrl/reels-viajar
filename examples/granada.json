@@ -1,0 +1,14 @@
+{
+  "name": "granada-en-diciembre",
+  "post_id": 89786,
+  "photo_url": "https://viajarporviajar.com/wp-content/uploads/2026/11/granada-alhambra-sierra-nevada.webp",
+  "titulo": ["Granada", "en diciembre"],
+  "gancho": ["Nieve y Alhambra", "el mismo día"],
+  "lugares": ["La Alhambra sin colas", "Albaicín al atardecer", "Tapas gratis en cada bebida", "Sierra Nevada a 30 minutos", "Capilla Real y catedral"],
+  "pasos": [
+    {"titulo": ["La Alhambra", "en invierno"], "texto": ["Reserva con semanas de antelación", "Entrada desde 19 €", "Empieza por los Palacios Nazaríes"]},
+    {"titulo": ["Albaicín", "y Sacromonte"], "texto": ["Sube andando por las cuestas", "Mirador de San Nicolás al atardecer", "Flamenco en una cueva del Sacromonte"]},
+    {"titulo": ["Tapas", "y Sierra Nevada"], "texto": ["Cada bebida lleva su tapa gratis", "Esquí a 30 minutos de la ciudad", "Itinerario ideal: 3 días"]}
+  ],
+  "cta": "viajarporviajar.com"
+}

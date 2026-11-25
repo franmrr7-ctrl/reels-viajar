@@ -1,0 +1,103 @@
+name: Generar Reel
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "Nombre del archivo (sin extension)"
+        required: true
+      photo_url:
+        required: true
+      titulo:
+        description: "Titulo (lineas separadas por salto de linea)"
+        required: true
+      gancho:
+        required: true
+      post_id:
+        description: "ID del articulo en WordPress (de ahi salen las fotos de cada escena)"
+        required: true
+      lugares:
+        required: true
+      p1_titulo:
+        required: true
+      p1_texto:
+        required: true
+      p2_titulo:
+        required: true
+      p2_texto:
+        required: true
+      p3_titulo:
+        required: true
+      p3_texto:
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reel
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar dependencias
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          pip install --quiet pillow numpy
+      - name: Generar el Reel
+        env:
+          IN_NAME: ${{ inputs.name }}
+          IN_PHOTO: ${{ inputs.photo_url }}
+          IN_TITULO: ${{ inputs.titulo }}
+          IN_GANCHO: ${{ inputs.gancho }}
+          IN_ING: ${{ inputs.lugares }}
+          IN_POST: ${{ inputs.post_id }}
+          IN_P1T: ${{ inputs.p1_titulo }}
+          IN_P1X: ${{ inputs.p1_texto }}
+          IN_P2T: ${{ inputs.p2_titulo }}
+          IN_P2X: ${{ inputs.p2_texto }}
+          IN_P3T: ${{ inputs.p3_titulo }}
+          IN_P3X: ${{ inputs.p3_texto }}
+        run: |
+          python - <<'PY'
+          import json, os
+          e = os.environ
+          data = {
+              "name": e["IN_NAME"],
+              "photo_url": e["IN_PHOTO"],
+              "titulo": e["IN_TITULO"],
+              "gancho": e["IN_GANCHO"],
+              "lugares": e["IN_ING"],
+              "post_id": e["IN_POST"],
+              "pasos": [
+                  {"titulo": e["IN_P1T"], "texto": e["IN_P1X"]},
+                  {"titulo": e["IN_P2T"], "texto": e["IN_P2X"]},
+                  {"titulo": e["IN_P3T"], "texto": e["IN_P3X"]},
+              ],
+              "cta": "viajarporviajar.com",
+          }
+          json.dump(data, open("guia.json", "w"), ensure_ascii=False)
+          PY
+          name=$(printf '%s' "$IN_NAME" | tr -c 'a-zA-Z0-9_-' '-')
+          python generate.py guia.json "$name.mp4"
+          echo "FILE=$name.mp4" >> "$GITHUB_ENV"
+          echo "TAG=reel-$name" >> "$GITHUB_ENV"
+      - name: Publicar como release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete "$TAG" --cleanup-tag --yes 2>/dev/null || true
+          gh release create "$TAG" "$FILE" --title "$TAG" --notes "Reel generado automaticamente"
+      - name: Dejar solo la release recien creada
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Make lee "la ultima release" (per_page=1): con una sola release no hay ambiguedad de orden
+          gh release list --limit 300 --json tagName --jq '.[].tagName' | while read -r t; do
+            [ -n "$t" ] && [ "$t" != "$TAG" ] && gh release delete "$t" --cleanup-tag --yes || true
+          done
