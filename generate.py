@@ -3,7 +3,7 @@
 
 Uso: python generate.py guia.json salida.mp4
 
-Formato del JSON (ver examples/granada.json):
+Formato del JSON (ver examples/granada.json). "gancho" es el TITULAR grande de la portada (2-3 lineas de max. 14 caracteres); "titulo" es el destino (rotulo pequeno); cada paso lleva UN dato corto:
 {
   "name": "granada-en-diciembre",
   "photo_url": "https://.../foto.jpg",
@@ -38,16 +38,16 @@ FONT_BODY = os.path.join(HERE, "fonts", "Lora.ttf")                 # texto de l
 
 # Paleta Viajar por Viajar: cobre del logo (brujula), marron cafe del texto y crema de la web
 ORANGE = (190, 112, 62, 255)   # acento: cobre/terracota del logo (kicker, pastillas, vinetas, marco)
-TEAL = (150, 86, 48, 255)      # acento oscuro para texto destacado sobre crema
+TEAL = (238, 172, 120, 255)    # cobre claro: kicker y texto destacado sobre fondo oscuro
 INK = (255, 250, 244, 255)     # texto sobre el acento (crema)
-CREAM = (43, 27, 23, 255)      # texto principal sobre el fondo claro (marron cafe)
-LIGHT = (255, 250, 244)        # fondo de la web
+CREAM = (255, 250, 244, 255)   # texto principal sobre el fondo oscuro
+LIGHT = (26, 18, 16)           # fondo oscuro (marron casi negro) que se mezcla con la foto desenfocada
 CORAL = (190, 112, 62, 255)
 BRAND = "VIAJAR POR VIAJAR"
 
 CARD_W, CARD_X = 960, 60
 CARD_R, BORDER = 44, 6
-PANEL_Y, PANEL_H = 170, 620   # tarjeta de foto de las escenas de ingredientes / pasos
+PANEL_Y, PANEL_H = 170, 700   # tarjeta de foto de las escenas de ingredientes / pasos
 HERO_MIN, HERO_MAX = 560, 820  # alto de la tarjeta de la portada segun la proporcion de la foto
 SAFE_BOTTOM = 1690            # deja libre el borde inferior de la interfaz de Facebook
 
@@ -149,23 +149,26 @@ def fit_title(d, lines, size, maxw=960):
 
 
 def text_layer(path, kicker, title_lines, body, body_size=46, title_size=120, bullets=True,
-               y0=720, chips=None, body_fill=CREAM, draw=True):
+               y0=720, chips=None, body_fill=CREAM, draw=True, only=None, skip_head=False):
     """Dibuja la capa de texto. Con draw=False solo mide y devuelve la y final (sin escribir nada)."""
     big = Image.new("RGBA", (W * SS, H * SS) if draw else (8, 8), (0, 0, 0, 0))
     d = _SD(ImageDraw.Draw(big))
     # rotulo de marca: banda naranja como la del logo
     bf = font(54)
     tw = d.textlength(BRAND, font=bf)
-    d.rounded_rectangle((60, 62, 60 + tw + 56, 62 + 84), radius=16, fill=ORANGE)
-    d.text((88, 62 + 42), BRAND, font=bf, fill=INK, anchor="lm")
+    if not skip_head:
+        d.rounded_rectangle((60, 62, 60 + tw + 56, 62 + 84), radius=16, fill=ORANGE)
+        d.text((88, 62 + 42), BRAND, font=bf, fill=INK, anchor="lm")
     y = y0
     if kicker:
-        d.text((60, y), kicker, font=font(66), fill=ORANGE)
+        if not skip_head:
+            d.text((60, y), kicker, font=font(66), fill=TEAL)
         y += 96
     if title_lines:
         ts = fit_title(d, title_lines, title_size)
         for ln in title_lines:
-            d.text((60, y), ln, font=font(ts), fill=CREAM)
+            if not skip_head:
+                d.text((60, y), ln, font=font(ts), fill=CREAM)
             y += int(ts * 1.2)
         y += 40
     if chips:
@@ -173,17 +176,20 @@ def text_layer(path, kicker, title_lines, body, body_size=46, title_size=120, bu
         x = 60
         for c in chips:
             cw = d.textlength(c, font=cf)
-            d.rounded_rectangle((x, y, x + cw + 52, y + 84), radius=42, fill=ORANGE)
-            d.text((x + 26, y + 42), c, font=cf, fill=INK, anchor="lm")
+            if not skip_head:
+                d.rounded_rectangle((x, y, x + cw + 52, y + 84), radius=42, fill=ORANGE)
+                d.text((x + 26, y + 42), c, font=cf, fill=INK, anchor="lm")
             x += cw + 52 + 16
         y += 84 + 28
     bfont = font(body_size, kind="body")
-    for item in body:
+    for bi, item in enumerate(body):
         lines = wrap(d, item, bfont, 860 if bullets else 960)
-        if bullets:
+        show = only is None or only == bi
+        if bullets and show:
             d.ellipse((60, y + body_size * 0.38, 60 + 20, y + body_size * 0.38 + 20), fill=ORANGE)
         for ln in lines:
-            d.text((105 if bullets else 60, y), ln, font=bfont, fill=body_fill)
+            if show:
+                d.text((105 if bullets else 60, y), ln, font=bfont, fill=body_fill)
             y += int(body_size * 1.32)
         y += 20 if bullets else 8
     if draw:
@@ -214,7 +220,7 @@ def make_bg(base, card_y, card_h):
     bg = base.copy().convert("RGBA")
     sh = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ImageDraw.Draw(sh).rounded_rectangle((CARD_X, card_y + 18, CARD_X + CARD_W, card_y + card_h + 18),
-                                         radius=CARD_R, fill=(20, 40, 44, 70))
+                                         radius=CARD_R, fill=(0, 0, 0, 120))
     bg = Image.alpha_composite(bg, sh.filter(ImageFilter.GaussianBlur(30)))
     ImageDraw.Draw(bg).rounded_rectangle((CARD_X - BORDER, card_y - BORDER, CARD_X + CARD_W + BORDER,
                                           card_y + card_h + BORDER), radius=CARD_R + BORDER, fill=ORANGE)
@@ -292,7 +298,7 @@ def main(src, dst):
     uniq = [photo] + extra
     focus = [(0.5, 0.5, 1.0), (0.12, 0.45, 1.35), (0.88, 0.55, 1.35), (0.5, 0.15, 1.35), (0.5, 0.9, 1.35), (0.25, 0.7, 1.5)]
     scene_photos = []
-    for si_ in range(6):
+    for si_ in range(5):
         k = si_ // len(uniq)
         img = uniq[si_ % len(uniq)]
         if k == 0:
@@ -305,96 +311,121 @@ def main(src, dst):
             x0, y0 = (img.width - cw) * fx, (img.height - chh) * fy
             scene_photos.append(img.crop((int(x0), int(y0), int(x0 + cw), int(y0 + chh))))
 
-    # fondo comun: foto desenfocada y oscurecida
-    scale = max(W / photo.width, H / photo.height)
-    base = photo.resize((int(photo.width * scale) + 1, int(photo.height * scale) + 1), Image.LANCZOS)
-    base = base.crop(((base.width - W) // 2, (base.height - H) // 2, (base.width - W) // 2 + W,
-                      (base.height - H) // 2 + H))
-    base = base.filter(ImageFilter.GaussianBlur(40))
-    base = Image.blend(base, Image.new("RGB", (W, H), LIGHT), 0.90)
+    def make_base(img):
+        """Fondo de cada escena: su propia foto muy desenfocada y oscurecida."""
+        sc = max(W / img.width, H / img.height)
+        bb = img.resize((int(img.width * sc) + 1, int(img.height * sc) + 1), Image.LANCZOS)
+        bb = bb.crop(((bb.width - W) // 2, (bb.height - H) // 2, (bb.width - W) // 2 + W,
+                      (bb.height - H) // 2 + H)).filter(ImageFilter.GaussianBlur(40))
+        return Image.blend(bb, Image.new("RGB", (W, H), LIGHT), 0.74)
 
     pasos = data["pasos"][:3]
-    ing = as_lines(data["lugares"])[:9]
+    ing = as_lines(data["lugares"])[:5]
     cta = data.get("cta", "viajarporviajar.com")
     titulo, gancho = as_lines(data["titulo"]), as_lines(data["gancho"])
+    destino = " ".join(titulo).upper()
 
-    # geometria de la portada: la tarjeta se adapta a la proporcion de la foto y el conjunto se centra
-    hero_h = int(max(HERO_MIN, min(HERO_MAX, CARD_W * photo.height / photo.width))) // 2 * 2
-    hero_text_h = text_layer(None, None, titulo, gancho, body_size=66, title_size=170, bullets=False,
-                             y0=0, body_fill=TEAL, draw=False)
-    content_h = hero_h + 56 + hero_text_h
-    hero_y = 170 + max(0, (SAFE_BOTTOM - 170 - content_h) // 2)
+    def words(lines):
+        return sum(len(l.split()) for l in lines)
 
-    # (nombre, duracion, geometria, kicker, titulo, cuerpo, tam titulo, tam cuerpo, vinetas, paneo, chips)
+    # Estructura (≈20 s): GANCHO grande -> lista que se revela linea a linea -> 3 datos (uno por escena) -> cierre
+    # que repite la foto y el encuadre de la portada (el bucle invita a volver a verlo).
     scenes = [
-        ("s1", 2.0, "hero", None, titulo, gancho, 170, 66, False, None, None),
-        ("s2", min(3.4, 1.3 + 0.24 * len(ing)), "panel", "IMPRESCINDIBLES", [], ing, 110, 54, True, (0.9, 0.3), None),
+        dict(name="s1", kind="hook", dur=3.0, kicker=destino, title=gancho, body=[], tsz=150, bsz=60,
+             bul=False, photo=scene_photos[0], zoom=0.07),
+        dict(name="s2", kind="list", dur=round(0.6 + 0.55 * (len(ing) - 1) + 1.5, 2), kicker="NO TE PUEDES PERDER",
+             title=[], body=ing, tsz=110, bsz=74, bul=True, photo=scene_photos[1], pan=(0.9, 0.3)),
     ]
     for i, p in enumerate(pasos, 1):
-        body = as_lines(p["texto"])
-        dur = min(3.2, 1.7 + 0.35 * len(body))
-        scenes.append((f"s{i+2}", dur, "panel", f"{i} DE {len(pasos)}", as_lines(p["titulo"]), body, 136, 54, True,
-                       ((0.4, 0.8) if i % 2 else (0.8, 0.3)), chips_from(body)))
-    scenes.append(("s6", 2.4, "panel", None, ["Guía", "completa"], [cta, "Enlace en el primer comentario"],
-                   150, 58, False, (0.2, 0.5), None))
-    total = sum(sc[1] for sc in scenes)
+        body = as_lines(p["texto"])[:2]
+        dur = max(2.8, min(4.2, 1.5 + 0.24 * words(body)))
+        scenes.append(dict(name=f"s{i+2}", kind="panel", dur=dur, kicker=f"{i} DE {len(pasos)}",
+                           title=as_lines(p["titulo"]), body=body, tsz=150, bsz=84, bul=False,
+                           photo=scene_photos[i + 1] if i + 1 < len(scene_photos) else photo,
+                           pan=((0.4, 0.8) if i % 2 else (0.8, 0.3)), chips=chips_from(as_lines(p["texto"]))))
+    scenes.append(dict(name="s6", kind="hook", dur=3.0, kicker=cta.upper(), title=["Guía", "completa"],
+                       body=["Todos los datos, precios y mapa", "Enlace en el primer comentario"], tsz=150, bsz=58,
+                       bul=False, photo=photo, zoom=0.07))
+    total = sum(sc["dur"] for sc in scenes)
 
     bar_path = os.path.join(tmp, "bar.png")
     Image.new("RGB", (W, 12), ORANGE[:3]).save(bar_path)
-    geo = {
-        "hero": (hero_y, hero_h),
-        "panel": (PANEL_Y, PANEL_H),
-    }
-    bgs, masks = {}, {}
-    for k, (cy, ch) in geo.items():
-        bgs[k] = os.path.join(tmp, f"bg_{k}.png")
-        make_bg(base, cy, ch).save(bgs[k])
-        masks[k] = os.path.join(tmp, f"mask_{k}.png")
-        make_mask(ch).save(masks[k])
 
     files, offset = [], 0.0
-    for si, (name, dur, g, kicker, title, body, tsz, bsz, bul, pan, chips) in enumerate(scenes):
-        sphoto = scene_photos[si] if si < len(scene_photos) else photo
-        cy, ch = geo[g]
-        hero_scene = g == "hero"
-        y0 = (cy + ch + 56) if hero_scene else (PANEL_Y + PANEL_H + 56)
-        # ajusta el tamano del cuerpo para que nunca invada el borde inferior
-        while bsz > 34 and text_layer(None, kicker, title, body, body_size=bsz, title_size=tsz, bullets=bul,
-                                      y0=y0, chips=chips, draw=False,
-                                      body_fill=TEAL if hero_scene else CREAM) > SAFE_BOTTOM:
-            bsz -= 2
+    for si, sc in enumerate(scenes):
+        name, dur, kind = sc["name"], sc["dur"], sc["kind"]
+        kicker, title, body, tsz, bsz, bul = sc["kicker"], sc["title"], sc["body"], sc["tsz"], sc["bsz"], sc["bul"]
+        chips = sc.get("chips")
+        sphoto = sc["photo"]
+        bodyfill = TEAL if kind == "hook" else CREAM
+        if kind == "hook":
+            # texto arriba (el gancho es lo primero que se lee) y la foto debajo, ocupando el resto
+            while True:
+                end = text_layer(None, kicker, title, body, body_size=bsz, title_size=tsz, bullets=bul, y0=190,
+                                 draw=False, body_fill=bodyfill)
+                cy = end + 24
+                ch = int(min(900, SAFE_BOTTOM - cy)) // 2 * 2
+                if ch >= 560 or tsz <= 90:
+                    break
+                tsz -= 10
+            y0 = 190
+        else:
+            cy, ch = PANEL_Y, PANEL_H
+            y0 = PANEL_Y + PANEL_H + 56
+            while bsz > 34 and text_layer(None, kicker, title, body, body_size=bsz, title_size=tsz, bullets=bul,
+                                          y0=y0, chips=chips, draw=False, body_fill=bodyfill) > SAFE_BOTTOM:
+                bsz -= 2
+        bg = os.path.join(tmp, f"bg_{name}.png")
+        make_bg(make_base(sphoto), cy, ch).save(bg)
+        mask = os.path.join(tmp, f"mask_{name}.png")
+        make_mask(ch).save(mask)
+        reveal = kind == "list"
         layer = os.path.join(tmp, f"{name}.png")
         text_layer(layer, kicker, title, body, body_size=bsz, title_size=tsz, bullets=bul, y0=y0, chips=chips,
-                   body_fill=TEAL if hero_scene else CREAM)
-        # foto de la tarjeta con margen para el zoom / paneo
-        src_img = cover(sphoto, int(CARD_W * 1.10 * 2), int(ch * 1.10 * 2))  # al doble: el zoom/paneo se reduce despues, sin temblor
+                   body_fill=bodyfill, only=-1 if reveal else None)
+        rlayers = []
+        if reveal:
+            for k in range(len(body)):
+                rp = os.path.join(tmp, f"{name}_r{k}.png")
+                text_layer(rp, kicker, title, body, body_size=bsz, title_size=tsz, bullets=bul, y0=y0, body_fill=bodyfill,
+                           only=k, skip_head=True)
+                rlayers.append((rp, 0.6 + 0.55 * k))
+        src_img = cover(sphoto, int(CARD_W * 1.12 * 2), int(ch * 1.12 * 2))  # al doble: el zoom/paneo se reduce despues, sin temblor
         src_path = os.path.join(tmp, f"{name}_foto.jpg")
         src_img.save(src_path, quality=95)
         out = os.path.join(tmp, f"{name}.mp4")
+        first = si == 0
         # la portada (escena 1) lleva el texto desde el primer fotograma: Facebook lo usa como miniatura
-        text_fx = "format=rgba" if hero_scene else "format=rgba,fade=t=in:st=0.1:d=0.35:alpha=1"
-        slide = "0" if hero_scene else "if(lt(t,0.45),36*(1-t/0.45),0)"
-        fin = "" if hero_scene else "fade=t=in:st=0:d=0.2,"
-        if hero_scene:
-            motion = (f"scale=w='iw*(1+0.04*t/{dur})':h=-1:eval=frame:flags=lanczos,crop={CARD_W*2}:{ch*2},"
+        text_fx = "format=rgba" if first else "format=rgba,fade=t=in:st=0.1:d=0.35:alpha=1"
+        slide = "0" if first else "if(lt(t,0.45),36*(1-t/0.45),0)"
+        fin = "" if first else "fade=t=in:st=0:d=0.2,"
+        if kind == "hook":
+            z = sc["zoom"]
+            motion = (f"scale=w='iw*(1+{z}*t/{dur})':h=-1:eval=frame:flags=lanczos,crop={CARD_W*2}:{ch*2},"
                       f"scale={CARD_W}:{ch}:flags=lanczos+accurate_rnd")
         else:
             mx = src_img.width - CARD_W * 2
-            x0, x1 = int(mx * pan[0]), int(mx * pan[1])
+            x0, x1 = int(mx * sc["pan"][0]), int(mx * sc["pan"][1])
             motion = (f"crop={CARD_W*2}:{ch*2}:x='{x0}+({x1}-{x0})*t/{dur}':y='(ih-oh)/2',"
                       f"scale={CARD_W}:{ch}:flags=lanczos+accurate_rnd")
+        n_in = 5
         fc = (f"[2:v]{text_fx}[t];[3:v]format=rgba[b];[4:v]format=gray[m];"
               f"[1:v]{motion},eq=saturation=1.12:contrast=1.05,unsharp=5:5:0.4[c0];[c0][m]alphamerge[c];"
               f"[0:v][c]overlay={CARD_X}:{cy}:format=gbrp[a];"
-              f"[a][t]overlay=0:'{slide}':format=gbrp[x];"
-              f"[x][b]overlay=x='-{W}+{W}*({offset}+t)/{total}':y=0:format=gbrp,"
-              f"scale=1440:2560:flags=lanczos+accurate_rnd+full_chroma_int:out_color_matrix=bt709,format=yuv420p,"
-              f"{fin}fade=t=out:st={dur-0.2}:d=0.2[v]")
+              f"[a][t]overlay=0:'{slide}':format=gbrp[x0];")
+        prev = "x0"
+        for k, (rp, st) in enumerate(rlayers):
+            fc += (f"[{n_in+k}:v]format=rgba,fade=t=in:st={st}:d=0.3:alpha=1[r{k}];"
+                   f"[{prev}][r{k}]overlay=0:0:format=gbrp[x{k+1}];")
+            prev = f"x{k+1}"
+        fc += (f"[{prev}][b]overlay=x='-{W}+{W}*({offset}+t)/{total}':y=0:format=gbrp,"
+               f"scale=1440:2560:flags=lanczos+accurate_rnd+full_chroma_int:out_color_matrix=bt709,format=yuv420p,"
+               f"{fin}fade=t=out:st={dur-0.2}:d=0.2[v]")
         cmd = ["ffmpeg", "-y", "-loglevel", "error"]
-        for p in (bgs[g], src_path, layer, bar_path, masks[g]):
+        for p in [bg, src_path, layer, bar_path, mask] + [r[0] for r in rlayers]:
             cmd += ["-framerate", "30", "-loop", "1", "-t", str(dur), "-i", p]
         cmd += ["-filter_complex", fc, "-map", "[v]", "-r", "30",
-                "-c:v", "libx264", "-crf", "12", "-preset", "slow", "-tune", "film", "-g", "60", "-pix_fmt", "yuv420p",
+                "-c:v", "libx264", "-crf", "12", "-preset", "medium", "-tune", "film", "-g", "60", "-pix_fmt", "yuv420p",
                 "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", out]
         subprocess.run(cmd, check=True)
         files.append(out)
